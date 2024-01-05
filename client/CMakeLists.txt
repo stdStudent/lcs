@@ -3,4 +3,9 @@ project(lcs)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(client main.cpp)
+add_executable(
+    client
+
+    main.cpp
+    Client.h
+)
