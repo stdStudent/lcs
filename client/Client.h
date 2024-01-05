@@ -55,7 +55,8 @@ public:
             fgets(buf, BUFSIZE, stdin); // Read a line from stdin
             buf[strcspn(buf,"\n")] = 0; // Remove carret return from the user's input
 
-            if (strcmp(buf, "quit") == 0) break;
+            if (strcmp(buf, "") == 0) continue; // Skip if the input is empty
+            if (strcmp(buf, "quit") == 0) break; // Quit (close the connection)
 
             if (const ssize_t sent = send(sockfd, buf, strlen(buf), 0); sent == 0) {
                 perror(USER_LOG "send failed");
