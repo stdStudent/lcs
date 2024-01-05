@@ -13,8 +13,9 @@
 #include <netinet/in.h> // for sockaddr_in
 #include <sys/socket.h> // for socket
 #include <pthread.h> // for multithread
-#include <cstdlib> // for char * to int
 #include <string> // for strings
+
+#include "ConfigHelper.h"
 
 #define SERVER_LOG "(server) "
 
@@ -85,7 +86,9 @@ class Server {
     }
 
 public:
-    explicit Server(const char* port): port(atoi(port)) {};
+    Server() : port(ConfigHelper::getPort()) {
+        printf(SERVER_LOG "Read port: %d\n", port);
+    };
 
     int start() {
         if (pthread_mutex_init(&mutx,nullptr)) {

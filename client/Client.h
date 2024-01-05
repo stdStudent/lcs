@@ -11,7 +11,8 @@
 #include <arpa/inet.h> // for htons
 #include <netinet/in.h> // for sockaddr_in
 #include <sys/socket.h> // for socket
-#include <cstdlib> // char* to int
+
+#include "ConfigHelper.h"
 
 #define USER_LOG "(me) "
 #define SERVER_LOG "(server) "
@@ -21,7 +22,10 @@ class Client {
     char* ip_addr = nullptr;
 
 public:
-    Client(const char* port, char* ip_addr) : port(atoi(port)), ip_addr(ip_addr) {};
+    Client() : port(ConfigHelper::getPort()), ip_addr(ConfigHelper::getIp()) {
+        printf(USER_LOG "Read ip: %s\n", ip_addr);
+        printf(USER_LOG "Read port: %d\n", port);
+    };
 
     int start() const {
         const int sockfd = socket(AF_INET, SOCK_STREAM, 0);
