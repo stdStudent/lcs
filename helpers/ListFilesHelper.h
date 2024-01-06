@@ -88,7 +88,7 @@ public:
        if (path.empty()) {
            path = server_path;
        } else {
-           path = server_path + path;
+           path = server_path + "/" + path;
        }
 
        // Get the block size

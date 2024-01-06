@@ -49,24 +49,37 @@ class CommandHandler {
 
 public:
     static void handleCommand(const std::string& msgFromUser, const int childfd) {
-        int commandCase = DEFAULT_CASE; // Default case
-        if (commandToCase.contains(msgFromUser)) {
-            commandCase = commandToCase.at(msgFromUser);
+        std::string firstPart, secondPart;
+        if (const size_t pos = msgFromUser.find(' '); pos == std::string::npos) {
+            firstPart = msgFromUser;
+        } else {
+            firstPart = msgFromUser.substr(0, pos);
+            secondPart = msgFromUser.substr(pos + 1);
         }
 
-        std::string emptyStr;
+        int commandCase = DEFAULT_CASE; // Default case
+        if (commandToCase.contains(firstPart)) {
+            commandCase = commandToCase.at(firstPart);
+        }
+
         std::string result;
         switch (commandCase) {
             case PS:
-                result = ProcessListHelper::getPsFa();
+                if (!secondPart.empty()) {
+                    const std::string warningMsg = COMMAND_HANDLER + firstPart + " doesn't take arguments!\n";
+                    printf(warningMsg.c_str());
+                    result += warningMsg;
+                }
+
+                result += ProcessListHelper::getPsFa();
                 break;
 
             case LS:
-                result = ListFileHelper::getLsLa(emptyStr);
+                result += ListFileHelper::getLsLa(secondPart);
                 break;
 
             default:
-                result = errorWrongCommand + msgFromUser;
+                result += errorWrongCommand + msgFromUser;
                 break;
         }
 
