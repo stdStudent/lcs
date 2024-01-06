@@ -8,17 +8,13 @@
 #include <unordered_map>
 #include <sys/socket.h> // for socket
 
+#include "Defines.h"
+#include "ListFilesHelper.h"
 #include "ProcessListHelper.h"
-
-#define COMMAND_HANDLER "(command handler) "
-
-#define DEFAULT_CASE 0
-#define PS 1
-#define LS 2
 
 class CommandHandler {
     static inline const auto errorWrongCommand = "! Wrong command received: ";
-    static inline const char* endOfMessage = "[[SERVICE:SIGNAL:END_OF_MESSAGE]]";
+    static inline const char* endOfMessage = END_OF_MESSAGE;
 
     const inline static std::unordered_map<std::string,int> commandToCase{
         {"default", DEFAULT_CASE},
@@ -58,6 +54,7 @@ public:
             commandCase = commandToCase.at(msgFromUser);
         }
 
+        std::string emptyStr;
         std::string result;
         switch (commandCase) {
             case PS:
@@ -65,7 +62,7 @@ public:
                 break;
 
             case LS:
-                result = "NOT IMPLEMENTED YET.";
+                result = ListFileHelper::getLsLa(emptyStr);
                 break;
 
             default:

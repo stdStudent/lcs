@@ -15,10 +15,10 @@
 #include <pthread.h> // for multithread
 #include <string> // for strings
 
+#include "Defines.h"
 #include "ConfigHelper.h"
 #include "CommandHandler.h"
-
-#define SERVER_LOG "(server) "
+#include "ListFilesHelper.h"
 
 class Server {
     int port;
@@ -80,6 +80,9 @@ class Server {
 public:
     Server() : port(ConfigHelper::getPort()) {
         printf(SERVER_LOG "Read port: %d\n", port);
+        if (ListFileHelper::initServerDir()) {
+            printf(SERVER_LOG "Initialized the server's directory\n");
+        }
     };
 
     int start() {

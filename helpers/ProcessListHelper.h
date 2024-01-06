@@ -11,7 +11,7 @@
 #include <sstream>
 #include <string>
 
-#define PS_MODULE "(ps module) "
+#include "Defines.h"
 
 class ProcessListHelper {
     static std::string print_status(const long tgid) {

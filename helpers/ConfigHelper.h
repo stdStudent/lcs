@@ -14,8 +14,8 @@ class ConfigHelper {
 public:
     static inline const std::string default_path = "config.cfg";
 
-    static char* getIp(const std::string &configPath = default_path) {
-        return getConfigValue<std::string>(configPath, "network", "ip").data();
+    static std::string getIp(const std::string &configPath = default_path) {
+        return getConfigValue<std::string>(configPath, "network", "ip");
     }
 
     static int getPort(const std::string &configPath = default_path) {

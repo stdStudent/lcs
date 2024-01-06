@@ -12,21 +12,23 @@
 #include <netinet/in.h> // for sockaddr_in
 #include <sys/socket.h> // for socket
 
+#include "Defines.h"
 #include "ConfigHelper.h"
-
-#define USER_LOG "(me) "
-#define SERVER_LOG "(server) "
+#include "ListFilesHelper.h"
 
 class Client {
     int port = -1;
     char* ip_addr = nullptr;
 
-    const std::string endOfMessage = "[[SERVICE:SIGNAL:END_OF_MESSAGE]]";
+    const std::string endOfMessage = END_OF_MESSAGE;
 
 public:
-    Client() : port(ConfigHelper::getPort()), ip_addr(ConfigHelper::getIp()) {
+    Client() : port(ConfigHelper::getPort()), ip_addr(strdup(ConfigHelper::getIp().c_str())) {
         printf(USER_LOG "Read ip: %s\n", ip_addr);
         printf(USER_LOG "Read port: %d\n", port);
+        if (ListFileHelper::initClientDir()) {
+            printf(SERVER_LOG "Initialized the client's directory\n");
+        }
     };
 
     int start() const {
