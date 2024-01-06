@@ -263,4 +263,7 @@ _deps
 
 # ------
 # Exclude binaries
-**/bin
+**/bin/**
+
+# But don't ignore config files
+!**/bin/*.cfg
