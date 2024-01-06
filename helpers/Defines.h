@@ -13,8 +13,7 @@
 
 #define END_OF_MESSAGE "[[SERVICE:SIGNAL:END_OF_MESSAGE]]"
 
-#define SERVER_DIR "serverdir"
-#define CLIENT_DIR "clientdir"
+#define CFG_GROUP_NAME "network"
 
 #define DEFAULT_CASE 0
 #define PS 1

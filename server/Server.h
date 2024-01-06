@@ -80,7 +80,7 @@ class Server {
 public:
     Server() : port(ConfigHelper::getPort()) {
         printf(SERVER_LOG "Read port: %d\n", port);
-        if (ListFileHelper::initServerDir()) {
+        if (ListFileHelper::initDir()) {
             printf(SERVER_LOG "Initialized the server's directory\n");
         }
     };

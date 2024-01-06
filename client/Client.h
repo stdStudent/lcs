@@ -26,8 +26,8 @@ public:
     Client() : port(ConfigHelper::getPort()), ip_addr(strdup(ConfigHelper::getIp().c_str())) {
         printf(USER_LOG "Read ip: %s\n", ip_addr);
         printf(USER_LOG "Read port: %d\n", port);
-        if (ListFileHelper::initClientDir()) {
-            printf(SERVER_LOG "Initialized the client's directory\n");
+        if (ListFileHelper::initDir()) {
+            printf(USER_LOG "Initialized the client's directory\n");
         }
     };
 

@@ -66,12 +66,8 @@ class ListFileHelper {
     }
 
 public:
-    static bool initServerDir() {
-        return mkdirNextToBin(SERVER_DIR);
-    }
-
-    static bool initClientDir() {
-        return mkdirNextToBin(CLIENT_DIR);
+    static bool initDir() {
+        return mkdirNextToBin(ConfigHelper::getDir());
     }
 
     static std::string getError() {
@@ -91,7 +87,7 @@ public:
        off_t total_size = 0;
 
        std::string result;
-       std::string server_path = getBinDir() + "/" + SERVER_DIR;
+       std::string server_path = getBinDir() + "/" + ConfigHelper::getDir();
 
        // If path is empty, use the current working directory (SERVER_DIR)
        if (path.empty()) {

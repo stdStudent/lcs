@@ -8,6 +8,8 @@
 #include <iostream>
 #include <libconfig.h++>
 
+#include "Defines.h"
+
 using namespace libconfig;
 
 class ConfigHelper {
@@ -15,11 +17,15 @@ public:
     static inline const std::string default_path = "config.cfg";
 
     static std::string getIp(const std::string &configPath = default_path) {
-        return getConfigValue<std::string>(configPath, "network", "ip");
+        return getConfigValue<std::string>(configPath, CFG_GROUP_NAME, "ip");
     }
 
     static int getPort(const std::string &configPath = default_path) {
-        return getConfigValue<int>(configPath, "network", "port");
+        return getConfigValue<int>(configPath, CFG_GROUP_NAME, "port");
+    }
+
+    static std::string getDir(const std::string &configPath = default_path) {
+        return getConfigValue<std::string>(configPath, CFG_GROUP_NAME, "dir");
     }
 
 private:
