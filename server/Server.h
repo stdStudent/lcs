@@ -16,6 +16,7 @@
 #include <string> // for strings
 
 #include "ConfigHelper.h"
+#include "CommandHandler.h"
 
 #define SERVER_LOG "(server) "
 
@@ -31,15 +32,6 @@ class Server {
         Server* server;
         int childfd;
     };
-
-    static int send_msg(const char *msg, const int childfd) {
-        if (const ssize_t sent = send(childfd, msg, strlen(msg), 0); sent == 0) {
-            perror(SERVER_LOG "send failed");
-            return -1;
-        }
-
-        return 0;
-    }
 
     // ReSharper disable once CppFunctionDoesntReturnValue
     /**
@@ -65,10 +57,10 @@ class Server {
                 perror(SERVER_LOG "recv failed");
                 break;
             }
+
             buf[received] = '\0';
-            if (send_msg("!!! To user from server", childfd) == -1) {
-                break;
-            }
+            CommandHandler::handleCommand(buf, childfd);
+
             printf("(%s) %s\n", server->clientIdentifiers[childfd].c_str(), buf);
         }
 

@@ -21,6 +21,8 @@ class Client {
     int port = -1;
     char* ip_addr = nullptr;
 
+    const std::string endOfMessage = "[[SERVICE:SIGNAL:END_OF_MESSAGE]]";
+
 public:
     Client() : port(ConfigHelper::getPort()), ip_addr(ConfigHelper::getIp()) {
         printf(USER_LOG "Read ip: %s\n", ip_addr);
@@ -63,14 +65,32 @@ public:
                 break;
             }
 
-            const ssize_t received = recv(sockfd, buf, BUFSIZE - 1, 0);
-            if (received == 0 || received == -1) {
-                perror(USER_LOG "recv failed");
-                break;
-            }
+            std::string response;
+            char tempBuf[BUFSIZE];
+            do {
+                const ssize_t received = recv(sockfd, tempBuf, BUFSIZE - 1, 0);
+                if (received <= 0) {
+                    if (received == 0)
+                        printf(USER_LOG "Connection closed by server\n");
+                    else
+                        perror(USER_LOG "recv failed");
 
-            buf[received] = '\0';
-            printf(SERVER_LOG "%s\n", buf);
+                    break;
+                }
+
+                tempBuf[received] = '\0';
+                response += tempBuf;
+            } while (response.find(endOfMessage) == std::string::npos);
+
+            // Remove service endOfMessage from the response only if it is at the very end
+            if (!response.empty() && response.substr(response.size() - endOfMessage.length()) == endOfMessage)
+                response.erase(response.size() - endOfMessage.length());
+
+            // Remove trailing carriage return
+            if (!response.empty() && response[response.size() - 1] == '\n')
+                response.erase(response.size() - 1);
+
+            printf(SERVER_LOG "\n%s\n", response.c_str());
         }
 
         close(sockfd);
