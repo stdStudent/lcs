@@ -17,13 +17,16 @@
 #include <string>
 
 #include "Defines.h"
+#include "ErrorHelper.h"
 
 class ListFileHelper {
+    static inline std::string error;
+
     static std::string getBinDir() {
         char buffer[1024];
         const ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
         if (len == -1) {
-            perror(LS_MODULE "readlink /proc/self/exe failed");
+            error = ErrorHelper::perror(LS_MODULE "readlink /proc/self/exe failed");
             exit(-1);
         }
 
@@ -58,7 +61,7 @@ class ListFileHelper {
         }
 
         // An error occurred
-        perror(LS_MODULE "mkdir");
+        error = ErrorHelper::perror(LS_MODULE "mkdir");
         return false;
     }
 
@@ -69,6 +72,12 @@ public:
 
     static bool initClientDir() {
         return mkdirNextToBin(CLIENT_DIR);
+    }
+
+    static std::string getError() {
+        std::string temp = error;
+        error.clear();
+        return temp;
     }
 
 	static std::string getLsLa(std::string& path) {
@@ -93,7 +102,7 @@ public:
 
        // Get the block size
        if (statvfs(path.c_str(), &vfs) == -1) {
-           perror("statvfs() error");
+           error = ErrorHelper::perror("statvfs() error");
            return "";
        }
 

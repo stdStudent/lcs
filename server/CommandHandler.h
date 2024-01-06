@@ -62,6 +62,7 @@ public:
             commandCase = commandToCase.at(firstPart);
         }
 
+        std::string error;
         std::string result;
         switch (commandCase) {
             case PS:
@@ -76,6 +77,9 @@ public:
 
             case LS:
                 result += ListFileHelper::getLsLa(secondPart);
+                error = ListFileHelper::getError();
+                if (!error.empty())
+                    result += error;
                 break;
 
             default:
