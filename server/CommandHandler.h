@@ -9,6 +9,7 @@
 #include <sys/socket.h> // for socket
 
 #include "Defines.h"
+#include "ExecutorHelper.h"
 #include "ListFilesHelper.h"
 #include "ProcessListHelper.h"
 
@@ -19,7 +20,8 @@ class CommandHandler {
     const inline static std::unordered_map<std::string,int> commandToCase{
         {"default", DEFAULT_CASE},
         {"ps", PS},
-        {"ls", LS}
+        {"ls", LS},
+        {"ex", EX}
     };
 
     static ssize_t sendall(const int s, const char *buf, const ssize_t len) {
@@ -81,6 +83,30 @@ public:
                 if (!error.empty())
                     result += error;
                 break;
+
+            case EX: {
+                if (secondPart.empty() || secondPart.find_first_not_of(' ') == std::string::npos) {
+                    result += COMMAND_HANDLER "ex must contain a command";
+                    break;
+                }
+
+                // Prevent hangning execution of interactive programs, e.g. vim
+                secondPart.insert(0, "timeout 5s ");
+
+                const std::vector<std::string> ex_commands = [secondPart] {
+                    std::vector<std::string> args;
+                    std::string arg;
+                    std::istringstream iss(secondPart);
+
+                    while (std::getline(iss, arg, '|')) {
+                        args.push_back(arg);
+                    }
+
+                    return args;
+                }();
+
+                result += ExecutorHelper::execute(ex_commands);
+            } break;
 
             default:
                 result += errorWrongCommand + msgFromUser;

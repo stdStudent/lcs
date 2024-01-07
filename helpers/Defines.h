@@ -10,6 +10,8 @@
 #define COMMAND_HANDLER "(command handler) "
 #define PS_MODULE "(ps module) "
 #define LS_MODULE "(ls module) "
+#define EX_MODULE "(ex module)"
+#define OUTPUT_CAPTURER_HELPER "(output captuter helper)"
 
 #define END_OF_MESSAGE "[[SERVICE:SIGNAL:END_OF_MESSAGE]]"
 
@@ -18,5 +20,6 @@
 #define DEFAULT_CASE 0
 #define PS 1
 #define LS 2
+#define EX 3
 
 #endif //DEFINES_H
