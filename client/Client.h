@@ -7,6 +7,7 @@
 
 #include <cstdio> // for perror
 #include <cstring> // for memset
+#include <fstream>
 #include <unistd.h> // for close
 #include <arpa/inet.h> // for htons
 #include <netinet/in.h> // for sockaddr_in
@@ -21,6 +22,23 @@ class Client {
     char* ip_addr = nullptr;
 
     const std::string endOfMessage = END_OF_MESSAGE;
+    const std::string transferFile = TRANSFER_FILE;
+
+    static std::string receiveData(const int sockfd, const int BUFSIZE) {
+        char tempBuf[BUFSIZE];
+        const ssize_t received = recv(sockfd, tempBuf, BUFSIZE - 1, 0);
+        if (received <= 0) {
+            if (received == 0)
+                printf(USER_LOG "Connection closed by server\n");
+            else
+                perror(USER_LOG "recv failed");
+
+            return "";
+        }
+
+        tempBuf[received] = '\0';
+        return std::string(tempBuf);
+    }
 
 public:
     Client() : port(ConfigHelper::getPort()), ip_addr(strdup(ConfigHelper::getIp().c_str())) {
@@ -67,21 +85,45 @@ public:
                 break;
             }
 
-            std::string response;
-            char tempBuf[BUFSIZE];
-            do {
-                const ssize_t received = recv(sockfd, tempBuf, BUFSIZE - 1, 0);
-                if (received <= 0) {
-                    if (received == 0)
-                        printf(USER_LOG "Connection closed by server\n");
-                    else
-                        perror(USER_LOG "recv failed");
+            bool saveFile = false;
+            std::ofstream file;
 
-                    break;
+            std::string response;
+            do {
+                auto data = receiveData(sockfd, BUFSIZE);
+
+                if (std::string(data).starts_with(transferFile)) {
+                    // remove tranferFileLength symbols from the beginning of the data
+                    data.erase(0, transferFile.length());
+
+                    const auto& fileNameSignal = [data] {
+                        const std::size_t firstPos = data.find("[[");
+                        const std::size_t secondPos = data.find("]]", firstPos);
+
+                        const std::size_t len = secondPos - firstPos;
+
+                        return data.substr(firstPos, len + 2);
+                    }();
+
+                    // extract the file name from the string "[[SERVICE:SIGNAL:FILE_NAME:%s]]" between FILE_NAME: and ]]
+                    const size_t startPos = fileNameSignal.find("FILE_NAME:") + 10;
+                    const size_t endPos = fileNameSignal.rfind("]]");
+
+                    std::string fileName;
+                    if (startPos != std::string::npos && endPos != std::string::npos) {
+                        fileName = fileNameSignal.substr(startPos, endPos - startPos);
+                    }
+
+                    // open file to write to
+                    file.open(ConfigHelper::getDir() + "/" + fileName, std::ios::out | std::ios::binary);
+
+                    // remove the file name signal from the data
+                    data.erase(0, fileNameSignal.length());
+
+                    saveFile = true;
                 }
 
-                tempBuf[received] = '\0';
-                response += tempBuf;
+                response += data;
             } while (response.find(endOfMessage) == std::string::npos);
 
             // Remove service endOfMessage from the response only if it is at the very end
@@ -89,10 +131,16 @@ public:
                 response.erase(response.size() - endOfMessage.length());
 
             // Remove trailing carriage return
-            if (!response.empty() && response[response.size() - 1] == '\n')
-                response.erase(response.size() - 1);
+            if (saveFile == false)
+                if (!response.empty() && response[response.size() - 1] == '\n')
+                    response.erase(response.size() - 1);
 
-            printf(SERVER_LOG "\n%s\n", response.c_str());
+            if (saveFile == true) {
+                // write response to file
+                file << response;
+                file.close();
+            } else
+                printf(SERVER_LOG "\n%s\n", response.c_str());
         }
 
         close(sockfd);

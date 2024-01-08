@@ -5,6 +5,7 @@
 #ifndef COMMANDHANDLER_H
 #define COMMANDHANDLER_H
 
+#include <fstream>
 #include <unordered_map>
 #include <sys/socket.h> // for socket
 
@@ -21,7 +22,8 @@ class CommandHandler {
         {"default", DEFAULT_CASE},
         {"ps", PS},
         {"ls", LS},
-        {"ex", EX}
+        {"ex", EX},
+        {"dl", DL}
     };
 
     static ssize_t sendall(const int s, const char *buf, const ssize_t len) {
@@ -135,6 +137,34 @@ public:
                 }();
 
                 result += ExecutorHelper::execute(ex_commands);
+            } break;
+
+            case DL: {
+                if (secondPart.empty()) {
+                    result += COMMAND_HANDLER "dl must contain a file name or a path to file";
+                    break;
+                }
+
+                const std::string& fileContent = [secondPart] {
+                    std::ifstream file(ConfigHelper::getDir() + "/" + secondPart);
+                    std::string content((std::istreambuf_iterator(file)), std::istreambuf_iterator<char>());
+                    return content;
+                }();
+
+                if (fileContent.empty()) {
+                    result += COMMAND_HANDLER "dl couldn't read the file";
+                    break;
+                }
+
+                const auto& transferFileServiceMsg = std::string(TRANSFER_FILE);
+
+                char fileName[1024]{};
+                sprintf(fileName, FILE_NAME, secondPart.c_str());
+                fileName[strlen(fileName)] = '\0';
+
+                result += transferFileServiceMsg;
+                result += fileName;
+                result += fileContent;
             } break;
 
             default:

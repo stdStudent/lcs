@@ -14,6 +14,8 @@
 #define OUTPUT_CAPTURER_HELPER "(output captuter helper)"
 
 #define END_OF_MESSAGE "[[SERVICE:SIGNAL:END_OF_MESSAGE]]"
+#define TRANSFER_FILE "[[SERVICE:SIGNAL:TRANSFER_FILE]]"
+#define FILE_NAME "[[SERVICE:SIGNAL:FILE_NAME:%s]]"
 
 #define CFG_GROUP_NAME "network"
 
@@ -21,5 +23,6 @@
 #define PS 1
 #define LS 2
 #define EX 3
+#define DL 4
 
 #endif //DEFINES_H
