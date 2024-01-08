@@ -67,15 +67,44 @@ public:
         std::string error;
         std::string result;
         switch (commandCase) {
-            case PS:
-                if (!secondPart.empty()) {
-                    const std::string warningMsg = COMMAND_HANDLER + firstPart + " doesn't take arguments!\n";
-                    printf(warningMsg.c_str());
-                    result += warningMsg;
-                }
+            case PS: {
+                const auto& psFaResult = ProcessListHelper::getPsFa();
 
-                result += ProcessListHelper::getPsFa();
-                break;
+                if (!secondPart.empty()) {
+                    // try to convert second part to a number
+                    int pid;
+                    try {
+                        pid = std::stoi(secondPart);
+                    } catch (const std::invalid_argument& ia) {
+                        result += COMMAND_HANDLER + secondPart + " is not a number!\n";
+                        break;
+                    }
+
+                    // find the line from psFaResult that starts with the pid
+                    const auto& pidLine = [pid, psFaResult] {
+                        std::istringstream iss(psFaResult);
+                        std::string line;
+                        while (std::getline(iss, line)) {
+                            if (line.find(std::to_string(pid)) == 0) {
+                                return line;
+                            }
+                        }
+                        return std::string();
+                    }();
+
+                    if (pidLine.empty()) {
+                        result += COMMAND_HANDLER + secondPart + " is not a valid pid!\n";
+                        break;
+                    }
+
+                    // get the first line from the psFaResult
+                    const size_t pos = psFaResult.find('\n');
+                    const auto& firstLine = psFaResult.substr(0, pos);
+
+                    result += firstLine + "\n" + pidLine;
+                } else
+                    result += ProcessListHelper::getPsFa();
+            } break;
 
             case LS:
                 result += ListFileHelper::getLsLa(secondPart);
