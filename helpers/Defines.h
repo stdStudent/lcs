@@ -11,11 +11,13 @@
 #define PS_MODULE "(ps module) "
 #define LS_MODULE "(ls module) "
 #define EX_MODULE "(ex module)"
+#define RECEIVE_HELPER "(receive helper)"
 #define OUTPUT_CAPTURER_HELPER "(output captuter helper)"
 
 #define END_OF_MESSAGE "[[SERVICE:SIGNAL:END_OF_MESSAGE]]"
-#define TRANSFER_FILE "[[SERVICE:SIGNAL:TRANSFER_FILE]]"
-#define FILE_NAME "[[SERVICE:SIGNAL:FILE_NAME:%s]]"
+#define TRANSFER_FILE "[[SERVICE:SIGNAL:TRANSFER_FILE:FILE_NAME:%s]]"
+#define TRANSFER_FILE_CUTTED "[[SERVICE:SIGNAL:TRANSFER_FILE:FILE_NAME:"
+#define TRANSFER_FILE_OK "[[SERVICE:SIGNAL:TRANSFER_FILE:OK]]"
 
 #define CFG_GROUP_NAME "network"
 

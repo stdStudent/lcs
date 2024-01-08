@@ -13,6 +13,7 @@
 #include "ExecutorHelper.h"
 #include "ListFilesHelper.h"
 #include "ProcessListHelper.h"
+#include "ReceiveHelper.h"
 
 class CommandHandler {
     static inline const auto errorWrongCommand = "! Wrong command received: ";
@@ -156,14 +157,13 @@ public:
                     break;
                 }
 
-                const auto& transferFileServiceMsg = std::string(TRANSFER_FILE);
+                char signalTransferFile[1024]{};
+                sprintf(signalTransferFile, TRANSFER_FILE, secondPart.c_str());
+                signalTransferFile[strlen(signalTransferFile)] = '\0';
 
-                char fileName[1024]{};
-                sprintf(fileName, FILE_NAME, secondPart.c_str());
-                fileName[strlen(fileName)] = '\0';
+                send_msg(signalTransferFile, childfd);
+                ReceiveHelper::receiveData(childfd);
 
-                result += transferFileServiceMsg;
-                result += fileName;
                 result += fileContent;
             } break;
 

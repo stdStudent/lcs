@@ -16,29 +16,15 @@
 #include "Defines.h"
 #include "ConfigHelper.h"
 #include "ListFilesHelper.h"
+#include "ReceiveHelper.h"
 
 class Client {
     int port = -1;
     char* ip_addr = nullptr;
 
     const std::string endOfMessage = END_OF_MESSAGE;
-    const std::string transferFile = TRANSFER_FILE;
-
-    static std::string receiveData(const int sockfd, const int BUFSIZE) {
-        char tempBuf[BUFSIZE];
-        const ssize_t received = recv(sockfd, tempBuf, BUFSIZE - 1, 0);
-        if (received <= 0) {
-            if (received == 0)
-                printf(USER_LOG "Connection closed by server\n");
-            else
-                perror(USER_LOG "recv failed");
-
-            return "";
-        }
-
-        tempBuf[received] = '\0';
-        return std::string(tempBuf);
-    }
+    const std::string transferFile = TRANSFER_FILE_CUTTED;
+    const std::string transferFileOk = TRANSFER_FILE_OK;
 
 public:
     Client() : port(ConfigHelper::getPort()), ip_addr(strdup(ConfigHelper::getIp().c_str())) {
@@ -90,37 +76,29 @@ public:
 
             std::string response;
             do {
-                auto data = receiveData(sockfd, BUFSIZE);
+                auto data = ReceiveHelper::receiveData(sockfd, BUFSIZE);
 
-                if (std::string(data).starts_with(transferFile)) {
-                    // remove tranferFileLength symbols from the beginning of the data
-                    data.erase(0, transferFile.length());
-
-                    const auto& fileNameSignal = [data] {
-                        const std::size_t firstPos = data.find("[[");
-                        const std::size_t secondPos = data.find("]]", firstPos);
-
-                        const std::size_t len = secondPos - firstPos;
-
-                        return data.substr(firstPos, len + 2);
-                    }();
-
+                if (data.starts_with(transferFile)) {
                     // extract the file name from the string "[[SERVICE:SIGNAL:FILE_NAME:%s]]" between FILE_NAME: and ]]
-                    const size_t startPos = fileNameSignal.find("FILE_NAME:") + 10;
-                    const size_t endPos = fileNameSignal.rfind("]]");
+                    const size_t startPos = data.find("FILE_NAME:") + 10;
+                    const size_t endPos = data.rfind("]]");
 
                     std::string fileName;
                     if (startPos != std::string::npos && endPos != std::string::npos) {
-                        fileName = fileNameSignal.substr(startPos, endPos - startPos);
+                        fileName = data.substr(startPos, endPos - startPos);
                     }
 
                     // open file to write to
                     file.open(ConfigHelper::getDir() + "/" + fileName, std::ios::out | std::ios::binary);
 
-                    // remove the file name signal from the data
-                    data.erase(0, fileNameSignal.length());
-
                     saveFile = true;
+
+                    if (const ssize_t sent = send(sockfd, transferFileOk.c_str(), transferFileOk.length(), 0); sent == 0) {
+                        perror(USER_LOG "send failed");
+                        break;
+                    }
+
+                    continue;
                 }
 
                 response += data;
