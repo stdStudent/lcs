@@ -8,7 +8,6 @@
 #include <fstream>
 #include <unordered_map>
 #include <sys/socket.h> // for socket
-#include <sys/mman.h> // for mmap
 
 #include "Defines.h"
 #include "ExecutorHelper.h"
@@ -173,6 +172,7 @@ public:
                 ReceiveHelper::receiveData(childfd);
 
                 char buffer[pageSize];
+                memset(buffer, 0, sizeof(buffer));
                 while (file.readsome(buffer, pageSize) > 0) {
                     send_msg(buffer, childfd);
                     // clear the buffer
