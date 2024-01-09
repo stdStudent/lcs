@@ -8,6 +8,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <sys/socket.h> // for socket
+#include <sys/mman.h> // for mmap
 
 #include "Defines.h"
 #include "ExecutorHelper.h"
@@ -146,14 +147,15 @@ public:
                     break;
                 }
 
-                const std::string& fileContent = [secondPart] {
-                    std::ifstream file(ConfigHelper::getDir() + "/" + secondPart);
-                    std::string content((std::istreambuf_iterator(file)), std::istreambuf_iterator<char>());
-                    return content;
-                }();
+                const auto& fileName = ConfigHelper::getDir() + "/" + secondPart;
+                if (access(fileName.c_str(), F_OK) != 0) {
+                    result += COMMAND_HANDLER "dl couldn't access the file";
+                    break;
+                }
 
-                if (fileContent.empty()) {
-                    result += COMMAND_HANDLER "dl couldn't read the file";
+                std::ifstream file(fileName, std::ios::binary);
+                if (!file.is_open()) {
+                    result += COMMAND_HANDLER "dl couldn't open the file";
                     break;
                 }
 
@@ -161,10 +163,23 @@ public:
                 sprintf(signalTransferFile, TRANSFER_FILE, secondPart.c_str());
                 signalTransferFile[strlen(signalTransferFile)] = '\0';
 
+                long pageSize = sysconf(_SC_PAGESIZE);
+                if (pageSize == -1) {
+                    result += COMMAND_HANDLER "couldn't retrieve a pagesize from the filysystem";
+                    break;
+                }
+
                 send_msg(signalTransferFile, childfd);
                 ReceiveHelper::receiveData(childfd);
 
-                result += fileContent;
+                char buffer[pageSize];
+                while (file.readsome(buffer, pageSize) > 0) {
+                    send_msg(buffer, childfd);
+                    // clear the buffer
+                    memset(buffer, 0, sizeof(buffer));
+                }
+
+                file.close();
             } break;
 
             default:
