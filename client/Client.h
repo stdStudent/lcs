@@ -75,6 +75,11 @@ public:
             std::ofstream file;
 
             std::string response;
+            int cnt = 0;
+            bool server_log_prited = false;
+            const auto& default_max_cnt = 4;
+            int max_cnt = default_max_cnt;
+
             do {
                 auto data = ReceiveHelper::receiveData(sockfd, BUFSIZE);
 
@@ -102,23 +107,50 @@ public:
                 }
 
                 response += data;
-            } while (response.find(endOfMessage) == std::string::npos);
+                ++cnt;
 
-            // Remove service endOfMessage from the response only if it is at the very end
-            if (!response.empty() && response.substr(response.size() - endOfMessage.length()) == endOfMessage)
-                response.erase(response.size() - endOfMessage.length());
+                const auto& foundEOM = response.find(endOfMessage) != std::string::npos;
 
-            // Remove trailing carriage return
-            if (saveFile == false)
-                if (!response.empty() && response[response.size() - 1] == '\n')
-                    response.erase(response.size() - 1);
+                if (cnt == max_cnt && foundEOM == false && max_cnt != default_max_cnt)
+                    max_cnt = default_max_cnt;
 
-            if (saveFile == true) {
-                // write response to file
-                file << response;
-                file.close();
-            } else
-                printf(SERVER_LOG "\n%s\n", response.c_str());
+                if (cnt == max_cnt)
+                    if (const auto p = response.find('['); p != std::string::npos)
+                        max_cnt *= 2;
+
+
+                if (cnt == max_cnt || foundEOM) {
+                    // Remove service endOfMessage from the response only if it is at the very end
+                    if (!response.empty() && response.substr(response.size() - endOfMessage.length()) == endOfMessage)
+                        response.erase(response.size() - endOfMessage.length());
+
+                    // Remove trailing carriage return
+                    if (saveFile == false)
+                        if (!response.empty() && response[response.size() - 1] == '\n')
+                            response.erase(response.size() - 1);
+
+                    if (saveFile == true) {
+                        // write response to file
+                        file << response;
+                    } else {
+                        if (server_log_prited == false) {
+                            printf(SERVER_LOG "\n%s\n", response.c_str());
+                            server_log_prited = true;
+                        } else {
+                            printf(SERVER_LOG "%s\n", response.c_str());
+                        }
+                    }
+
+                    if (foundEOM) {
+                        break;
+                    }
+
+                    response.clear();
+                    cnt = 0;
+                }
+            } while (true);
+
+            file.close();
         }
 
         close(sockfd);
