@@ -5,15 +5,16 @@
 #ifndef RECEIVEHELPER_H
 #define RECEIVEHELPER_H
 
-#include <string>
 #include <sys/socket.h>
 
 #include "Defines.h"
 
 class ReceiveHelper {
 public:
-    static std::string receiveData(const int sockfd, const int BUFSIZE = 1024) {
+    static std::vector<char> receiveData(const int sockfd, const int BUFSIZE = 1024) {
         char tempBuf[BUFSIZE];
+        memset(tempBuf, 0, sizeof(tempBuf));
+
         const ssize_t received = recv(sockfd, tempBuf, BUFSIZE - 1, 0);
         if (received <= 0) {
             if (received == 0)
@@ -21,11 +22,11 @@ public:
             else
                 perror(RECEIVE_HELPER "recv failed");
 
-            return "";
+            // empty vector
+            return {};
         }
 
-        tempBuf[received] = '\0';
-        return std::string(tempBuf);
+        return std::vector(tempBuf, tempBuf + received);
     }
 };
 

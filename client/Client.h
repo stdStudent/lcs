@@ -9,6 +9,7 @@
 #include <cstring> // for memset
 #include <fstream>
 #include <unistd.h> // for close
+#include <vector>
 #include <arpa/inet.h> // for htons
 #include <netinet/in.h> // for sockaddr_in
 #include <sys/socket.h> // for socket
@@ -75,13 +76,18 @@ public:
             std::ofstream file;
 
             std::string response;
+            std::vector<char> bytesResponse;
+            size_t bytes_cnt = 0;
+
             int cnt = 0;
             bool server_log_prited = false;
             const auto& default_max_cnt = 4;
             int max_cnt = default_max_cnt;
 
             do {
-                auto data = ReceiveHelper::receiveData(sockfd, BUFSIZE);
+                auto bytes = ReceiveHelper::receiveData(sockfd, BUFSIZE);
+                const auto& data = std::string(bytes.begin(), bytes.end());
+                bytes_cnt += bytes.size();
 
                 if (data.starts_with(transferFile)) {
                     // extract the file name from the string "[[SERVICE:SIGNAL:FILE_NAME:%s]]" between FILE_NAME: and ]]
@@ -107,6 +113,7 @@ public:
                 }
 
                 response += data;
+                bytesResponse.insert(bytesResponse.end(), bytes.begin(), bytes.end());
                 ++cnt;
 
                 const auto& foundEOM = response.find(endOfMessage) != std::string::npos;
@@ -124,6 +131,10 @@ public:
                     if (!response.empty() && response.substr(response.size() - endOfMessage.length()) == endOfMessage)
                         response.erase(response.size() - endOfMessage.length());
 
+                    // Remove service endOfMessage from the bytesResponse only if it is at the very end
+                    if (!bytesResponse.empty() && bytesResponse[bytesResponse.size() - endOfMessage.length()] == endOfMessage[0])
+                        bytesResponse.erase(bytesResponse.end() - endOfMessage.length(), bytesResponse.end());
+
                     // Remove trailing carriage return
                     if (saveFile == false)
                         if (!response.empty() && response[response.size() - 1] == '\n')
@@ -131,7 +142,7 @@ public:
 
                     if (saveFile == true) {
                         // write response to file
-                        file << response;
+                        file.write(bytesResponse.data(), bytesResponse.size());
                     } else {
                         if (server_log_prited == false) {
                             printf(SERVER_LOG "\n%s\n", response.c_str());
@@ -146,6 +157,7 @@ public:
                     }
 
                     response.clear();
+                    bytesResponse.clear();
                     cnt = 0;
                 }
             } while (true);
