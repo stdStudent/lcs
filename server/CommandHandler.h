@@ -52,6 +52,15 @@ class CommandHandler {
         return 0;
     }
 
+    static int send_bin(const char *binary, const int childfd, const ssize_t bytes_read) {
+        if (const ssize_t sent = sendall(childfd, binary, bytes_read); sent == -1) {
+            perror(COMMAND_HANDLER "send failed");
+            return -1;
+        }
+
+        return 0;
+    }
+
 public:
     static void handleCommand(const std::string& msgFromUser, const int childfd) {
         std::string firstPart, secondPart;
@@ -180,8 +189,9 @@ public:
                 char buffer[pageSize];
                 memset(buffer, 0, sizeof(buffer));
                 while (file.readsome(buffer, pageSize) > 0) {
-                    send_msg(buffer, childfd);
-                    bytes_sent += file.gcount();
+                    const auto& bytes_read = file.gcount();
+                    send_bin(buffer, childfd, bytes_read);
+                    bytes_sent += bytes_read;
                     // clear the buffer
                     memset(buffer, 0, sizeof(buffer));
                 }
