@@ -171,12 +171,28 @@ public:
                 send_msg(signalTransferFile, childfd);
                 ReceiveHelper::receiveData(childfd);
 
+                // get the size of a file to a variable
+                struct stat filestatus{};
+                stat(fileName.c_str(), &filestatus);
+                const auto& fileSize = filestatus.st_size; // in bytes
+
+                long bytes_sent = 0;
                 char buffer[pageSize];
                 memset(buffer, 0, sizeof(buffer));
                 while (file.readsome(buffer, pageSize) > 0) {
                     send_msg(buffer, childfd);
+                    bytes_sent += file.gcount();
                     // clear the buffer
                     memset(buffer, 0, sizeof(buffer));
+                }
+
+                if (bytes_sent != fileSize) {
+                    // get formatter error string
+                    std::stringstream err;
+                    err << COMMAND_HANDLER
+                        << "couldb't send the whole file " << fileName
+                        << " (" << bytes_sent << "/" << fileSize << " bytes sent)";
+                    perror(err.str().c_str());
                 }
 
                 file.close();
