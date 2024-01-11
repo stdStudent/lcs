@@ -80,7 +80,7 @@ public:
             size_t bytes_cnt = 0;
 
             int cnt = 0;
-            bool server_log_prited = false;
+            bool server_log_printed = false;
             const auto& default_max_cnt = 4;
             int max_cnt = default_max_cnt;
 
@@ -144,11 +144,11 @@ public:
                         // write response to file
                         file.write(bytesResponse.data(), bytesResponse.size());
                     } else {
-                        if (server_log_prited == false) {
+                        if (server_log_printed == false) {
                             printf(SERVER_LOG "\n%s\n", response.c_str());
-                            server_log_prited = true;
+                            server_log_printed = true;
                         } else {
-                            printf(SERVER_LOG "%s\n", response.c_str());
+                            printf("%s\n", response.c_str());
                         }
                     }
 
