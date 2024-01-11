@@ -13,6 +13,7 @@
 #define EX_MODULE "(ex module)"
 #define RECEIVE_HELPER "(receive helper)"
 #define OUTPUT_CAPTURER_HELPER "(output captuter helper)"
+#define MODIFICATION_TIME_HELPER "(modification time helper)"
 
 #define END_OF_MESSAGE "[[SERVICE:SIGNAL:END_OF_MESSAGE]]"
 #define TRANSFER_FILE "[[SERVICE:SIGNAL:TRANSFER_FILE:FILE_NAME:%s]]"
@@ -27,5 +28,6 @@
 #define LS 2
 #define EX 3
 #define DL 4
+#define MT 5
 
 #endif //DEFINES_H

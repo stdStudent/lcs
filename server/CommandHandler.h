@@ -12,6 +12,7 @@
 #include "Defines.h"
 #include "ExecutorHelper.h"
 #include "ListFilesHelper.h"
+#include "ModificationTimeHelper.h"
 #include "ProcessListHelper.h"
 #include "ReceiveHelper.h"
 
@@ -24,7 +25,8 @@ class CommandHandler {
         {"ps", PS},
         {"ls", LS},
         {"ex", EX},
-        {"dl", DL}
+        {"dl", DL},
+        {"mt", MT}
     };
 
     static ssize_t sendall(const int s, const char *buf, const ssize_t len) {
@@ -207,6 +209,16 @@ public:
 
                 file.close();
             } break;
+
+            case MT:
+                if (secondPart.empty()) {
+                    result += COMMAND_HANDLER "mt must contain a file name or a path to file";
+                    break;
+                }
+
+                result += ModificationTimeHelper::getModificationTime(secondPart);
+
+                break;
 
             default:
                 result += errorWrongCommand + msgFromUser;
