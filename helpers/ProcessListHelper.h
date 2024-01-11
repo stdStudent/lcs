@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <cstdio>
 #include <cctype>
+#include <iomanip>
 #include <sstream>
 #include <string>
 
@@ -29,9 +30,18 @@ class ProcessListHelper {
         if (char line[100]; fgets(line, 100, statf)) {
             char comm[20];
             sscanf(line, "%d %s %c %d %d %d %d %d %lu", &pid, comm, &state, &ppid, &pgrp, &session, &tty_nr, &tpgid, &minflt);
-            ss << pid << "\t" << comm << "\t\t\t" << state << "\t" << ppid << "\t" << pgrp << "\t" << session << "\t" << tty_nr << "\t" << tpgid << "\t" << minflt << "\n";
+            ss << std::setw(10) << pid << std::setw(20) << comm << std::setw(10) << state << std::setw(10) << ppid << std::setw(10) << pgrp << std::setw(10) << session << std::setw(10) << tty_nr << std::setw(10) << tpgid << std::setw(12) << minflt;
         }
 
+        std::string cmdline_path = "/proc/" + std::to_string(tgid) + "/cmdline";
+        if (std::ifstream cmdlinef(cmdline_path); cmdlinef) {
+            std::string arg;
+            while (std::getline(cmdlinef, arg, '\0')) {
+                ss << ' ' << arg;
+            }
+        }
+
+        ss << "\n";
         fclose(statf);
         return ss.str();
     }
@@ -47,7 +57,7 @@ public:
             return "";
         }
 
-        ss << "pid\tcomm\t\t\tstate\tppid\tpgrp\tsession\ttty_nr\ttpgid\tminflt\n";
+        ss << std::setw(10) << "pid" << std::setw(20) << "comm" << std::setw(10) << "state" << std::setw(10) << "ppid" << std::setw(10) << "pgrp" << std::setw(10) << "session" << std::setw(10) << "tty_nr" << std::setw(10) << "tpgid" << std::setw(12) << "minflt" << ' ' << "cmdline\n";
         while ((ent = readdir(proc))) {
             if (!isdigit(*ent->d_name))
                 continue;
