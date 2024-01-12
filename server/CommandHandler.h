@@ -86,20 +86,25 @@ public:
 
                 if (!secondPart.empty()) {
                     // try to convert second part to a number
-                    int pid;
                     try {
-                        pid = std::stoi(secondPart);
+                        std::stoi(secondPart);
                     } catch (const std::invalid_argument& ia) {
                         result += COMMAND_HANDLER + secondPart + " is not a number!\n";
                         break;
                     }
 
                     // find the line from psFaResult that starts with the pid
-                    const auto& pidLine = [pid, psFaResult] {
+                    const auto& pidLine = [secondPart, psFaResult] {
+                        const std::string whitespace = " \t";
                         std::istringstream iss(psFaResult);
                         std::string line;
                         while (std::getline(iss, line)) {
-                            if (line.find(std::to_string(pid)) == 0) {
+                            const auto strBegin = line.find_first_not_of(whitespace);
+                            if (strBegin != std::string::npos)
+                                line = line.substr(strBegin);
+
+                            if (line.starts_with(secondPart + " ")) {
+                                line.insert(0, strBegin, ' ');
                                 return line;
                             }
                         }
