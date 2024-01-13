@@ -145,14 +145,15 @@ public:
                         file.write(bytesResponse.data(), bytesResponse.size());
                     } else {
                         if (server_log_printed == false) {
-                            printf(SERVER_LOG "\n%s\n", response.c_str());
+                            printf(SERVER_LOG "\n%s", response.c_str());
                             server_log_printed = true;
                         } else {
-                            printf("%s\n", response.c_str());
+                            printf("%s", response.c_str());
                         }
                     }
 
                     if (foundEOM) {
+                        puts(""); // new line
                         break;
                     }
 

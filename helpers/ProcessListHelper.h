@@ -57,7 +57,7 @@ class ProcessListHelper {
             lines.push_back(tmp);
         }
 
-        // from each line delete first 64 symbols and add to the result
+        // from each line delete symbols until actual file descriptors
         std::string resultFileDescs;
         for (auto& line : lines) {
             if (line.size() > fileDescCutSize)
