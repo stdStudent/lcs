@@ -76,7 +76,7 @@ public:
         return temp;
     }
 
-	static std::string getLsLa(std::string& path) {
+	static std::string getLsLa(std::string& path, bool absolutePath = false) {
        DIR *thedirectory;
        dirent *thefile;
        struct stat thestat{};
@@ -87,13 +87,15 @@ public:
        off_t total_size = 0;
 
        std::string result;
-       std::string server_path = getBinDir() + "/" + ConfigHelper::getDir();
+       if (!absolutePath) {
+           std::string server_path = getBinDir() + "/" + ConfigHelper::getDir();
 
-       // If path is empty, use the current working directory (SERVER_DIR)
-       if (path.empty()) {
-           path = server_path;
-       } else {
-           path = server_path + "/" + path;
+           // If path is empty, use the current working directory (SERVER_DIR)
+           if (path.empty()) {
+               path = server_path;
+           } else {
+               path = server_path + "/" + path;
+           }
        }
 
        // Get the block size
