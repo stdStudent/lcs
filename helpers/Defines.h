@@ -30,4 +30,6 @@
 #define DL 4
 #define MT 5
 
+#define IN_PROCESS_NOT_COMPLETED_EXT ".ipnc"
+
 #endif //DEFINES_H

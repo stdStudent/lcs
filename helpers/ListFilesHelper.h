@@ -22,6 +22,7 @@
 class ListFileHelper {
     static inline std::string error;
 
+public:
     static std::string getBinDir() {
         char buffer[1024];
         const ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
@@ -41,6 +42,7 @@ class ListFileHelper {
         return binDir;
     }
 
+private:
     static bool mkdirNextToBin(const std::string& dirName) {
         // Get the directory of the binary
         std::string binDir = getBinDir();
@@ -175,6 +177,34 @@ public:
        closedir(thedirectory);
 
        return result;
+    }
+
+    /**
+     * \brief Get first inpc filename from the client dir or return empty string if there are no ipnc files
+     * \return Example: "file.txt.ipnc"
+     */
+    static std::string getIpncFileName() {
+        dirent *thefile;
+        struct stat thestat{};
+
+        const std::string client_path = getBinDir() + "/" + ConfigHelper::getDir();
+        DIR *thedirectory = opendir(client_path.c_str());
+
+        std::string result;
+        while ((thefile = readdir(thedirectory)) != nullptr) {
+            char buf[512];
+            sprintf(buf, "%s/%s", client_path.c_str(), thefile->d_name);
+            lstat(buf, &thestat);
+
+            if (S_ISREG(thestat.st_mode) && std::string(thefile->d_name).find(IN_PROCESS_NOT_COMPLETED_EXT) != std::string::npos) {
+                result = thefile->d_name;
+                break;
+            }
+        }
+
+        closedir(thedirectory);
+
+        return result;
     }
 };
 

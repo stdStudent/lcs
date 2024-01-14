@@ -10,6 +10,7 @@
 #include <fstream>
 #include <unistd.h> // for close
 #include <vector>
+#include <filesystem>
 #include <arpa/inet.h> // for htons
 #include <netinet/in.h> // for sockaddr_in
 #include <sys/socket.h> // for socket
@@ -36,6 +37,13 @@ public:
         }
     };
 
+    static void readUserInput(const int& BUFSIZE, char* buf) {
+        // allow user to enter a command
+        printf("> ");
+        fgets(buf, BUFSIZE, stdin); // Read a line from stdin
+        buf[strcspn(buf,"\n")] = 0; // Remove carret return from the user's input
+    }
+
     int start() const {
         const int sockfd = socket(AF_INET, SOCK_STREAM, 0);
         if (sockfd == -1) {
@@ -60,9 +68,31 @@ public:
             static constexpr int BUFSIZE = 1024;
             char buf[BUFSIZE];
 
-            printf("> ");
-            fgets(buf, BUFSIZE, stdin); // Read a line from stdin
-            buf[strcspn(buf,"\n")] = 0; // Remove carret return from the user's input
+            bool isDownloadCompleted = true;
+
+            // check if there are inpc files in the cliend dir
+            if (const auto& inpcFile = ListFileHelper::getIpncFileName(); !inpcFile.empty()) {
+                // get filename without inpc extension
+                const auto& fileName = inpcFile.substr(0, inpcFile.size() - strlen(IN_PROCESS_NOT_COMPLETED_EXT));
+
+                try {
+                    // get filesize of the fileName
+                    std::filesystem::path origFilePath = ListFileHelper::getBinDir() + '/' + ConfigHelper::getDir() + '/' + fileName;
+                    const auto& bytes = file_size(origFilePath);
+
+                    // set buffer to finish dl command
+                    const std::string& finishDlCmd = "dl " + fileName + ' ' + std::to_string(bytes);
+                    strcpy(buf, finishDlCmd.c_str());
+
+                    printf(USER_LOG "found incompletely downloaded file (%s), downloading resumed...\n", fileName.c_str());
+                    isDownloadCompleted = false;
+                } catch (const std::exception& e) {
+                    printf(USER_LOG "Found inpc file but failed due to the error: %s\n", e.what());
+                    readUserInput(BUFSIZE, buf);
+                }
+            } else {
+                readUserInput(BUFSIZE, buf);
+            }
 
             if (strcmp(buf, "") == 0) continue; // Skip if the input is empty
             if (strcmp(buf, "quit") == 0) break; // Quit (close the connection)
@@ -74,10 +104,12 @@ public:
 
             bool saveFile = false;
             std::ofstream file;
+            std::string inpcFilePath;
 
             std::string response;
             std::vector<char> bytesResponse;
             size_t bytes_cnt = 0;
+            bool isConnectionAlive = true;
 
             int cnt = 0;
             bool server_log_printed = false;
@@ -85,7 +117,12 @@ public:
             int max_cnt = default_max_cnt;
 
             do {
-                auto bytes = ReceiveHelper::receiveData(sockfd, BUFSIZE);
+                const auto& [bytes, status] = ReceiveHelper::receiveData(sockfd, BUFSIZE);
+                if (!status) {
+                    isConnectionAlive = status;
+                    break;
+                }
+
                 const auto& data = std::string(bytes.begin(), bytes.end());
                 bytes_cnt += bytes.size();
 
@@ -99,8 +136,17 @@ public:
                         fileName = data.substr(startPos, endPos - startPos);
                     }
 
-                    // open file to write to
-                    file.open(ConfigHelper::getDir() + "/" + fileName, std::ios::out | std::ios::binary);
+                    if (isDownloadCompleted == false)
+                        // open file in append mode
+                        file.open(ConfigHelper::getDir() + "/" + fileName, std::ios::out | std::ios::binary | std::ios::app);
+                    else
+                        // open file in write mode
+                        file.open(ConfigHelper::getDir() + "/" + fileName, std::ios::out | std::ios::binary);
+
+                    // create service file to indicate that the file is being transferred
+                    inpcFilePath = ConfigHelper::getDir() + "/" + fileName + IN_PROCESS_NOT_COMPLETED_EXT;
+                    std::ofstream inpcFile(inpcFilePath);
+                    inpcFile.close();
 
                     saveFile = true;
 
@@ -153,7 +199,16 @@ public:
                     }
 
                     if (foundEOM) {
-                        if (!saveFile) puts(""); // new line on text responses only
+                        if (!saveFile) {
+                            puts(""); // new line on text responses only
+                        } else {
+                            // received file, close it
+                            file.close();
+
+                            // remove inpc service file
+                            remove(inpcFilePath.c_str());
+                            inpcFilePath.clear();
+                        }
                         break;
                     }
 
@@ -163,7 +218,10 @@ public:
                 }
             } while (true);
 
-            file.close();
+            if (isConnectionAlive == false) {
+                if (saveFile) file.close();
+                break;
+            }
         }
 
         close(sockfd);

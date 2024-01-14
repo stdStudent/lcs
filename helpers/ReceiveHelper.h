@@ -11,7 +11,10 @@
 
 class ReceiveHelper {
 public:
-    static std::vector<char> receiveData(const int sockfd, const int BUFSIZE = 1024) {
+    /**
+     * \return bytes and status - true if connection is alive, false if connection is closed
+     */
+    static std::pair<std::vector<char>, bool> receiveData(const int sockfd, const int BUFSIZE = 1024) {
         char tempBuf[BUFSIZE];
         memset(tempBuf, 0, sizeof(tempBuf));
 
@@ -19,15 +22,15 @@ public:
         if (received <= 0) {
             if (received == 0) {
                 printf(RECEIVE_HELPER "Connection closed by other side\n");
-                exit(received);
+                return {{}, false};
             } else
                 perror(RECEIVE_HELPER "recv failed");
 
-            // empty vector
-            return {};
+            // return empty vector and true because connection is alive
+            return {{}, true};
         }
 
-        return std::vector(tempBuf, tempBuf + received);
+        return {std::vector(tempBuf, tempBuf + received), true};
     }
 };
 
