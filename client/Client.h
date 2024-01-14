@@ -153,7 +153,7 @@ public:
                     }
 
                     if (foundEOM) {
-                        puts(""); // new line
+                        if (!saveFile) puts(""); // new line on text responses only
                         break;
                     }
 
