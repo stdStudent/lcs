@@ -158,11 +158,30 @@ public:
 
             case DL: {
                 if (secondPart.empty()) {
-                    result += COMMAND_HANDLER "dl must contain a file name or a path to file";
+                    result += COMMAND_HANDLER "dl must contain at least a file name or a path to file";
                     break;
                 }
 
-                const auto& fileName = ConfigHelper::getDir() + "/" + secondPart;
+                // split secondPart by whitespace to a pair of strings
+                const auto& [dl_file, dl_offset] = [secondPart] {
+                    std::pair<std::string, std::string> args;
+                    std::string arg;
+                    std::istringstream iss(secondPart);
+
+                    std::getline(iss, arg, ' ');
+                    args.first = arg;
+
+                    if (secondPart.find(' ') != std::string::npos) {
+                        std::getline(iss, arg, ' ');
+                        args.second = arg;
+                    } else {
+                        args.second = "";
+                    }
+
+                    return args;
+                }();
+
+                const auto& fileName = ConfigHelper::getDir() + "/" + dl_file;
                 if (access(fileName.c_str(), F_OK) != 0) {
                     result += COMMAND_HANDLER "dl couldn't access the file";
                     break;
@@ -174,9 +193,21 @@ public:
                     break;
                 }
 
-                char signalTransferFile[1024]{};
-                sprintf(signalTransferFile, TRANSFER_FILE, secondPart.c_str());
-                signalTransferFile[strlen(signalTransferFile)] = '\0';
+                // if dl_offset is not empty and not a number, send error
+                int file_offset = -1;
+                if (!dl_offset.empty()) {
+                    try {
+                        file_offset = std::stoi(dl_offset);
+                    } catch (const std::invalid_argument& ia) {
+                        result += COMMAND_HANDLER + dl_offset + " is not a number!\n";
+                        break;
+                    }
+
+                    if (file_offset < 0) {
+                        result += COMMAND_HANDLER + dl_offset + " is not a valid offset!\n";
+                        break;
+                    }
+                }
 
                 long pageSize = sysconf(_SC_PAGESIZE);
                 if (pageSize == -1) {
@@ -184,13 +215,34 @@ public:
                     break;
                 }
 
-                send_msg(signalTransferFile, childfd);
-                ReceiveHelper::receiveData(childfd);
-
                 // get the size of a file to a variable
                 struct stat filestatus{};
                 stat(fileName.c_str(), &filestatus);
-                const auto& fileSize = filestatus.st_size; // in bytes
+                auto& fileSize = filestatus.st_size; // in bytes
+
+                // if file_offest is >= 0 and < fileSize, we need to send only a part of a file
+                if (file_offset >= 0) {
+                    if (file_offset > fileSize) {
+                        result += COMMAND_HANDLER "invalid offset received: bigger than the file's size";
+                        break;
+                    }
+
+                    file.seekg(file_offset);
+                    if (!file.good()) {
+                        result += COMMAND_HANDLER "couldn't seek to the offset";
+                        break;
+                    }
+
+                    // change the fileSize to the size of a part of a file
+                    fileSize -= file_offset;
+                }
+
+                char signalTransferFile[1024]{};
+                sprintf(signalTransferFile, TRANSFER_FILE, dl_file.c_str());
+                signalTransferFile[strlen(signalTransferFile)] = '\0';
+
+                send_msg(signalTransferFile, childfd);
+                ReceiveHelper::receiveData(childfd);
 
                 long bytes_sent = 0;
                 char buffer[pageSize];
