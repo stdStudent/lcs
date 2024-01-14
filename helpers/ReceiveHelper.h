@@ -17,9 +17,10 @@ public:
 
         const ssize_t received = recv(sockfd, tempBuf, BUFSIZE - 1, 0);
         if (received <= 0) {
-            if (received == 0)
-                printf(RECEIVE_HELPER "Connection closed by server\n");
-            else
+            if (received == 0) {
+                printf(RECEIVE_HELPER "Connection closed by other side\n");
+                exit(received);
+            } else
                 perror(RECEIVE_HELPER "recv failed");
 
             // empty vector
