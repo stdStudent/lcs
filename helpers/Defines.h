@@ -14,6 +14,9 @@
 #define RECEIVE_HELPER "(receive helper) "
 #define OUTPUT_CAPTURER_HELPER "(output captuter helper) "
 #define MODIFICATION_TIME_HELPER "(modification time helper) "
+#define TRANSFER_FILE_HELPER "(transfer file helper) "
+#define UPLOAD_FILE_HELPER_SENDER "(upload file helper :: sender) "
+#define UPLOAD_FILE_HELPER_RECIPIENT "(upload file helper :: recipient) "
 
 #define END_OF_MESSAGE "[[SERVICE:SIGNAL:END_OF_MESSAGE]]"
 #define TRANSFER_FILE "[[SERVICE:SIGNAL:TRANSFER_FILE:FILE_NAME:%s]]"
@@ -29,6 +32,7 @@
 #define EX 3
 #define DL 4
 #define MT 5
+#define UL 6
 
 #define IN_PROCESS_NOT_COMPLETED_EXT ".ipnc"
 

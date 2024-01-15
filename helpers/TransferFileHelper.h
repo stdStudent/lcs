@@ -41,16 +41,22 @@ public:
         return args;
     }
 
-    static bool transferFile(const int childfd, const std::string& dl_file, const std::string& dl_offset, std::string &result) {
+    static bool transferFile(
+        const int childfd,
+        const std::string& dl_file,
+        const std::string& dl_offset,
+        std::string& result,
+        const bool& signalsEnabled = true
+    ) {
         const auto& fileName = ConfigHelper::getDir() + "/" + dl_file;
         if (access(fileName.c_str(), F_OK) != 0) {
-            result += COMMAND_HANDLER "dl couldn't access the file";
+            result += TRANSFER_FILE_HELPER "couldn't access the file";
             return false;
         }
 
         std::ifstream file(fileName, std::ios::binary);
         if (!file.is_open()) {
-            result += COMMAND_HANDLER "dl couldn't open the file";
+            result += TRANSFER_FILE_HELPER "couldn't open the file";
             return false;
         }
 
@@ -60,19 +66,19 @@ public:
             try {
                 file_offset = std::stoi(dl_offset);
             } catch (const std::invalid_argument& ia) {
-                result += COMMAND_HANDLER + dl_offset + " is not a number!\n";
+                result += TRANSFER_FILE_HELPER + dl_offset + " is not a number!\n";
                 return false;
             }
 
             if (file_offset < 0) {
-                result += COMMAND_HANDLER + dl_offset + " is not a valid offset!\n";
+                result += TRANSFER_FILE_HELPER + dl_offset + " is not a valid offset!\n";
                 return false;
             }
         }
 
         long pageSize = sysconf(_SC_PAGESIZE);
         if (pageSize == -1) {
-            result += COMMAND_HANDLER "couldn't retrieve a pagesize from the filysystem";
+            result += TRANSFER_FILE_HELPER "couldn't retrieve a pagesize from the filesystem";
             return false;
         }
 
@@ -84,13 +90,13 @@ public:
         // if file_offest is >= 0 and < fileSize, we need to send only a part of a file
         if (file_offset >= 0) {
             if (file_offset > fileSize) {
-                result += COMMAND_HANDLER "invalid offset received: bigger than the file's size";
+                result += TRANSFER_FILE_HELPER "invalid offset received: bigger than the file's size";
                 return false;
             }
 
             file.seekg(file_offset);
             if (!file.good()) {
-                result += COMMAND_HANDLER "couldn't seek to the offset";
+                result += TRANSFER_FILE_HELPER "couldn't seek to the offset";
                 return false;
             }
 
@@ -98,12 +104,14 @@ public:
             fileSize -= file_offset;
         }
 
-        char signalTransferFile[1024]{};
-        sprintf(signalTransferFile, TRANSFER_FILE, dl_file.c_str());
-        signalTransferFile[strlen(signalTransferFile)] = '\0';
+        if (signalsEnabled) {
+            char signalTransferFile[1024]{};
+            sprintf(signalTransferFile, TRANSFER_FILE, dl_file.c_str());
+            signalTransferFile[strlen(signalTransferFile)] = '\0';
 
-        SendHelper::send_msg(signalTransferFile, childfd);
-        ReceiveHelper::receiveData(childfd);
+            SendHelper::send_msg(signalTransferFile, childfd);
+            ReceiveHelper::receiveData(childfd);
+        }
 
         long bytes_sent = 0;
         char buffer[pageSize];
@@ -119,9 +127,9 @@ public:
         if (bytes_sent != fileSize) {
             // get formatter error string
             std::stringstream err;
-            err << COMMAND_HANDLER
-                    << "couldb't send the whole file " << fileName
-                    << " (" << bytes_sent << "/" << fileSize << " bytes sent)";
+            err << TRANSFER_FILE_HELPER
+                << "couldb't send the whole file " << fileName
+                << " (" << bytes_sent << "/" << fileSize << " bytes sent)";
             perror(err.str().c_str());
         }
 

@@ -19,6 +19,8 @@
 #include "ConfigHelper.h"
 #include "ListFilesHelper.h"
 #include "ReceiveHelper.h"
+#include "TransferFileHelper.h"
+#include "UploadFileHelper.h"
 
 class Client {
     int port = -1;
@@ -92,6 +94,14 @@ public:
                 }
             } else {
                 readUserInput(BUFSIZE, buf);
+            }
+
+            // if buf start with "ul", trigger upload
+            if (buf[0] == 'u' && buf[1] == 'l') {
+                if (const auto& status = UploadFileHelper::Sender::uploadTo(sockfd, buf, BUFSIZE); status == false)
+                    printf(USER_LOG "failed to upload the file. See the error above\n");
+
+                continue;
             }
 
             if (strcmp(buf, "") == 0) continue; // Skip if the input is empty

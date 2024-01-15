@@ -15,6 +15,7 @@
 #include "ProcessListHelper.h"
 #include "SendHelper.h"
 #include "TransferFileHelper.h"
+#include "UploadFileHelper.h"
 
 class CommandHandler {
     static inline const auto errorWrongCommand = "! Wrong command received: ";
@@ -26,7 +27,8 @@ class CommandHandler {
         {"ls", LS},
         {"ex", EX},
         {"dl", DL},
-        {"mt", MT}
+        {"mt", MT},
+        {"ul", UL}
     };
 
 public:
@@ -143,6 +145,15 @@ public:
                 result += ModificationTimeHelper::getModificationTime(secondPart);
 
                 break;
+
+            case UL: {
+                if (secondPart.empty()) {
+                    result += COMMAND_HANDLER "ul must contain a file name or a path to file";
+                    break;
+                }
+
+                UploadFileHelper::Recipient::downloadFrom(childfd, secondPart, result);
+            } break;
 
             default:
                 result += errorWrongCommand + msgFromUser;
