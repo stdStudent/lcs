@@ -7,7 +7,6 @@
 
 #include <fstream>
 #include <unordered_map>
-#include <sys/socket.h> // for socket
 
 #include "Defines.h"
 #include "ExecutorHelper.h"
@@ -15,6 +14,7 @@
 #include "ModificationTimeHelper.h"
 #include "ProcessListHelper.h"
 #include "ReceiveHelper.h"
+#include "SendHelper.h"
 
 class CommandHandler {
     static inline const auto errorWrongCommand = "! Wrong command received: ";
@@ -28,40 +28,6 @@ class CommandHandler {
         {"dl", DL},
         {"mt", MT}
     };
-
-    static ssize_t sendall(const int s, const char *buf, const ssize_t len) {
-        ssize_t total = 0;       // how many bytes we've sent
-        ssize_t bytesleft = len; // how many we have left to send
-        ssize_t n;
-
-        while(total < len) {
-            n = send(s, buf+total, bytesleft, 0);
-            if (n == -1) { break; }
-            total += n;
-            bytesleft -= n;
-        }
-
-        return n == -1 ? -1 : 0; // return -1 on failure, 0 on success
-    }
-
-    static int send_msg(const char *msg, const int childfd) {
-        // if (const ssize_t sent = send(childfd, msg, strlen(msg), 0); sent == 0) {
-        if (const ssize_t sent = sendall(childfd, msg, strlen(msg)); sent == -1) {
-            perror(COMMAND_HANDLER "send failed");
-            return -1;
-        }
-
-        return 0;
-    }
-
-    static int send_bin(const char *binary, const int childfd, const ssize_t bytes_read) {
-        if (const ssize_t sent = sendall(childfd, binary, bytes_read); sent == -1) {
-            perror(COMMAND_HANDLER "send failed");
-            return -1;
-        }
-
-        return 0;
-    }
 
 public:
     static void handleCommand(const std::string& msgFromUser, const int childfd) {
@@ -241,7 +207,7 @@ public:
                 sprintf(signalTransferFile, TRANSFER_FILE, dl_file.c_str());
                 signalTransferFile[strlen(signalTransferFile)] = '\0';
 
-                send_msg(signalTransferFile, childfd);
+                SendHelper::send_msg(signalTransferFile, childfd);
                 ReceiveHelper::receiveData(childfd);
 
                 long bytes_sent = 0;
@@ -249,7 +215,7 @@ public:
                 memset(buffer, 0, sizeof(buffer));
                 while (file.readsome(buffer, pageSize) > 0) {
                     const auto& bytes_read = file.gcount();
-                    send_bin(buffer, childfd, bytes_read);
+                    SendHelper::send_bin(buffer, childfd, bytes_read);
                     bytes_sent += bytes_read;
                     // clear the buffer
                     memset(buffer, 0, sizeof(buffer));
@@ -282,8 +248,8 @@ public:
                 break;
         }
 
-        send_msg(result.c_str(), childfd);
-        send_msg(endOfMessage, childfd);
+        SendHelper::send_msg(result.c_str(), childfd);
+        SendHelper::send_msg(endOfMessage, childfd);
     }
 
 };
