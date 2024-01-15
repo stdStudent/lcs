@@ -13,8 +13,8 @@
 #include "ListFilesHelper.h"
 #include "ModificationTimeHelper.h"
 #include "ProcessListHelper.h"
-#include "ReceiveHelper.h"
 #include "SendHelper.h"
+#include "TransferFileHelper.h"
 
 class CommandHandler {
     static inline const auto errorWrongCommand = "! Wrong command received: ";
@@ -128,109 +128,10 @@ public:
                     break;
                 }
 
-                // split secondPart by whitespace to a pair of strings
-                const auto& [dl_file, dl_offset] = [secondPart] {
-                    std::pair<std::string, std::string> args;
-                    std::string arg;
-                    std::istringstream iss(secondPart);
+                const auto& [dl_file, dl_offset] = TransferFileHelper::extractDlArgs(secondPart);
 
-                    std::getline(iss, arg, ' ');
-                    args.first = arg;
-
-                    if (secondPart.find(' ') != std::string::npos) {
-                        std::getline(iss, arg, ' ');
-                        args.second = arg;
-                    } else {
-                        args.second = "";
-                    }
-
-                    return args;
-                }();
-
-                const auto& fileName = ConfigHelper::getDir() + "/" + dl_file;
-                if (access(fileName.c_str(), F_OK) != 0) {
-                    result += COMMAND_HANDLER "dl couldn't access the file";
+                if (const auto& status = TransferFileHelper::transferFile(childfd, dl_file, dl_offset, result); status == false)
                     break;
-                }
-
-                std::ifstream file(fileName, std::ios::binary);
-                if (!file.is_open()) {
-                    result += COMMAND_HANDLER "dl couldn't open the file";
-                    break;
-                }
-
-                // if dl_offset is not empty and not a number, send error
-                int file_offset = -1;
-                if (!dl_offset.empty()) {
-                    try {
-                        file_offset = std::stoi(dl_offset);
-                    } catch (const std::invalid_argument& ia) {
-                        result += COMMAND_HANDLER + dl_offset + " is not a number!\n";
-                        break;
-                    }
-
-                    if (file_offset < 0) {
-                        result += COMMAND_HANDLER + dl_offset + " is not a valid offset!\n";
-                        break;
-                    }
-                }
-
-                long pageSize = sysconf(_SC_PAGESIZE);
-                if (pageSize == -1) {
-                    result += COMMAND_HANDLER "couldn't retrieve a pagesize from the filysystem";
-                    break;
-                }
-
-                // get the size of a file to a variable
-                struct stat filestatus{};
-                stat(fileName.c_str(), &filestatus);
-                auto& fileSize = filestatus.st_size; // in bytes
-
-                // if file_offest is >= 0 and < fileSize, we need to send only a part of a file
-                if (file_offset >= 0) {
-                    if (file_offset > fileSize) {
-                        result += COMMAND_HANDLER "invalid offset received: bigger than the file's size";
-                        break;
-                    }
-
-                    file.seekg(file_offset);
-                    if (!file.good()) {
-                        result += COMMAND_HANDLER "couldn't seek to the offset";
-                        break;
-                    }
-
-                    // change the fileSize to the size of a part of a file
-                    fileSize -= file_offset;
-                }
-
-                char signalTransferFile[1024]{};
-                sprintf(signalTransferFile, TRANSFER_FILE, dl_file.c_str());
-                signalTransferFile[strlen(signalTransferFile)] = '\0';
-
-                SendHelper::send_msg(signalTransferFile, childfd);
-                ReceiveHelper::receiveData(childfd);
-
-                long bytes_sent = 0;
-                char buffer[pageSize];
-                memset(buffer, 0, sizeof(buffer));
-                while (file.readsome(buffer, pageSize) > 0) {
-                    const auto& bytes_read = file.gcount();
-                    SendHelper::send_bin(buffer, childfd, bytes_read);
-                    bytes_sent += bytes_read;
-                    // clear the buffer
-                    memset(buffer, 0, sizeof(buffer));
-                }
-
-                if (bytes_sent != fileSize) {
-                    // get formatter error string
-                    std::stringstream err;
-                    err << COMMAND_HANDLER
-                        << "couldb't send the whole file " << fileName
-                        << " (" << bytes_sent << "/" << fileSize << " bytes sent)";
-                    perror(err.str().c_str());
-                }
-
-                file.close();
             } break;
 
             case MT:
