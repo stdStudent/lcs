@@ -20,6 +20,7 @@
 #include "ConfigHelper.h"
 #include "CommandHandler.h"
 #include "ListFilesHelper.h"
+#include "ThreadPool.h"
 
 class Server {
     int port;
@@ -113,6 +114,7 @@ public:
             return -1;
         }
 
+        ThreadPool pool;
         pthread_t pthread;
 
         constexpr int optval = 1;
@@ -166,8 +168,10 @@ public:
                 args.server = this;
                 args.childfd = childfd;
 
-                pthread_create(&pthread,nullptr, client_connect, &args);
-                printf(SERVER_LOG "%s connected\n", clientIdentifiers[childfd].c_str());
+                pool.enqueue([&] {
+                    pthread_create(&pthread, nullptr, client_connect, &args);
+                    printf(SERVER_LOG "%s connected\n", clientIdentifiers[childfd].c_str());
+                });
 
                 ev.events = EPOLLIN | EPOLLET;
                 ev.data.fd = childfd;
