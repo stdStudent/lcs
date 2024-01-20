@@ -10,6 +10,7 @@
 #include <cstring> // for memset
 #include <unistd.h> // for close
 #include <arpa/inet.h> // for htons
+#include <sys/epoll.h> // for epoll
 #include <netinet/in.h> // for sockaddr_in
 #include <sys/socket.h> // for socket
 #include <pthread.h> // for multithread
@@ -97,6 +98,21 @@ public:
             return -1;
         }
 
+        // Create epoll instance
+        const int epfd = epoll_create1(0);
+        if (epfd == -1) {
+            perror("epoll_create1");
+            return -1;
+        }
+
+        epoll_event ev{};
+        ev.events = EPOLLIN;
+        ev.data.fd = sockfd;
+        if (epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev) == -1) {
+            perror("epoll_ctl");
+            return -1;
+        }
+
         pthread_t pthread;
 
         constexpr int optval = 1;
@@ -121,30 +137,45 @@ public:
         }
 
         while (true) {
-            sockaddr_in address{};
-            socklen_t clientLength = sizeof(sockaddr);
-
-            int childfd = accept(sockfd, reinterpret_cast<struct sockaddr *>(&address), &clientLength);
-            if (childfd < 0) {
-                perror(SERVER_LOG "ERROR on accept");
+            epoll_event ev{};
+            if (const int ret = epoll_wait(epfd, &ev, 1, -1); ret == -1) {
+                perror("epoll_wait");
                 break;
             }
 
-            // Set id for a user
-            const std::string identifier = "user" + std::to_string(childfd);
-            clientIdentifiers[childfd] = identifier;
+            if (ev.events & EPOLLIN) {
+                sockaddr_in address{};
+                socklen_t clientLength = sizeof(sockaddr);
 
-            pthread_mutex_lock(&mutx);
-            client[client_num++] = childfd;
-            pthread_mutex_unlock(&mutx);
+                int childfd = accept(sockfd, reinterpret_cast<struct sockaddr *>(&address), &clientLength);
+                if (childfd < 0) {
+                    perror(SERVER_LOG "ERROR on accept");
+                    break;
+                }
 
-            // Provide the server and the childfd to the pthread to avoid global variables
-            ClientConnectArgs args{};
-            args.server = this;
-            args.childfd = childfd;
+                // Set id for a user
+                const std::string identifier = "user" + std::to_string(childfd);
+                clientIdentifiers[childfd] = identifier;
 
-            pthread_create(&pthread,nullptr, client_connect, &args);
-            printf(SERVER_LOG "%s connected\n", clientIdentifiers[childfd].c_str());
+                pthread_mutex_lock(&mutx);
+                client[client_num++] = childfd;
+                pthread_mutex_unlock(&mutx);
+
+                // Provide the server and the childfd to the pthread to avoid global variables
+                ClientConnectArgs args{};
+                args.server = this;
+                args.childfd = childfd;
+
+                pthread_create(&pthread,nullptr, client_connect, &args);
+                printf(SERVER_LOG "%s connected\n", clientIdentifiers[childfd].c_str());
+
+                ev.events = EPOLLIN | EPOLLET;
+                ev.data.fd = childfd;
+                if (epoll_ctl(epfd, EPOLL_CTL_ADD, childfd, &ev) == -1) {
+                    perror("epoll_ctl");
+                    break;
+                }
+            }
         }
 
         close(sockfd);
