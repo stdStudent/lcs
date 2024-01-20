@@ -15,7 +15,7 @@
 
 class ThreadPool {
 public:
-    ThreadPool(size_t num_threads = std::thread::hardware_concurrency()) {
+    explicit ThreadPool(const size_t num_threads = std::thread::hardware_concurrency()) {
         for (size_t i = 0; i < num_threads; ++i) {
             threads_.emplace_back([this] {
                 while (true) {
@@ -37,7 +37,7 @@ public:
 
     ~ThreadPool() {
         {
-            std::unique_lock<std::mutex> lock(queue_mutex_);
+            std::unique_lock lock(queue_mutex_);
             stop_ = true;
         }
         cv_.notify_all();
@@ -47,8 +47,8 @@ public:
     }
 
     template<typename F, typename... Args>
-    auto enqueue(F&& f, Args&&... args) -> std::future<typename std::result_of<F(Args...)>::type> {
-        using return_type = typename std::result_of<F(Args...)>::type;
+    auto enqueue(F&& f, Args&&... args) -> std::future<std::result_of_t<F(Args...)>> {
+        using return_type = std::result_of_t<F(Args...)>;
         auto task = std::make_shared<std::packaged_task<return_type()>>(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
         std::future<return_type> res = task->get_future();
         {
