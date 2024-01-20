@@ -10,7 +10,8 @@
 #include <cstring> // for memset
 #include <unistd.h> // for close
 #include <arpa/inet.h> // for htons
-#include <sys/epoll.h> // for epoll
+#include <fcntl.h> // for O_* flags
+#include <sys/stat.h> // for mkfifo
 #include <netinet/in.h> // for sockaddr_in
 #include <sys/socket.h> // for socket
 #include <pthread.h> // for multithread
@@ -25,6 +26,7 @@
 class Server {
     int port;
     pthread_mutex_t mutx;
+    int pipefd[2]; // Pipe file descriptor
     int client[10];
     int client_num = 0;
     bool option = false;
@@ -82,8 +84,14 @@ class Server {
 public:
     Server() : port(ConfigHelper::getPort()) {
         printf(SERVER_LOG "Read port: %d\n", port);
+
         if (ListFileHelper::initDir()) {
             printf(SERVER_LOG "Initialized the server's directory\n");
+        }
+
+        if (pipe(pipefd) == -1) {
+            perror("Pipe failed");
+            exit(EXIT_FAILURE);
         }
     };
 
@@ -99,22 +107,22 @@ public:
             return -1;
         }
 
-        // Create epoll instance
-        const int epfd = epoll_create1(0);
-        if (epfd == -1) {
-            perror("epoll_create1");
-            return -1;
-        }
+        // // Create epoll instance
+        // const int epfd = epoll_create1(0);
+        // if (epfd == -1) {
+        //     perror("epoll_create1");
+        //     return -1;
+        // }
 
-        epoll_event ev{};
-        ev.events = EPOLLIN;
-        ev.data.fd = sockfd;
-        if (epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev) == -1) {
-            perror("epoll_ctl");
-            return -1;
-        }
+        // epoll_event ev{};
+        // ev.events = EPOLLIN;
+        // ev.data.fd = sockfd;
+        // if (epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev) == -1) {
+        //     perror("epoll_ctl");
+        //     return -1;
+        // }
 
-        ThreadPool pool;
+        ThreadPool pool(1);
         pthread_t pthread;
 
         constexpr int optval = 1;
@@ -139,13 +147,13 @@ public:
         }
 
         while (true) {
-            epoll_event ev{};
-            if (const int ret = epoll_wait(epfd, &ev, 1, -1); ret == -1) {
-                perror("epoll_wait");
-                break;
-            }
+            // epoll_event ev{};
+            // if (const int ret = epoll_wait(epfd, &ev, 1, -1); ret == -1) {
+            //     perror("epoll_wait");
+            //     break;
+            // }
 
-            if (ev.events & EPOLLIN) {
+            // if (ev.events & EPOLLIN) {
                 sockaddr_in address{};
                 socklen_t clientLength = sizeof(sockaddr);
 
@@ -154,6 +162,9 @@ public:
                     perror(SERVER_LOG "ERROR on accept");
                     break;
                 }
+
+                // Send a message to the pipe
+                write(pipefd[1], &childfd, sizeof(childfd));
 
                 // Set id for a user
                 const std::string identifier = "user" + std::to_string(childfd);
@@ -168,18 +179,30 @@ public:
                 args.server = this;
                 args.childfd = childfd;
 
-                pool.enqueue([&] {
-                    pthread_create(&pthread, nullptr, client_connect, &args);
-                    printf(SERVER_LOG "%s connected\n", clientIdentifiers[childfd].c_str());
+                pool.registerCallback(childfd, [this](int fd) {
+                        static constexpr int BUFSIZE = 1024;
+                        char buf[BUFSIZE];
+                        const ssize_t received = recv(fd, buf, BUFSIZE - 1, 0);
+                        if (received == 0 || received == -1) {
+                            perror(SERVER_LOG "recv failed");
+                            return;
+                        }
+
+                        buf[received] = '\0';
+                        CommandHandler::handleCommand(buf, fd);
+
+                        printf("(%s) %s\n", clientIdentifiers[fd].c_str(), buf);
                 });
 
-                ev.events = EPOLLIN | EPOLLET;
-                ev.data.fd = childfd;
-                if (epoll_ctl(epfd, EPOLL_CTL_ADD, childfd, &ev) == -1) {
-                    perror("epoll_ctl");
-                    break;
-                }
-            }
+                pool.addSocket(childfd);
+
+                // ev.events = EPOLLIN | EPOLLET;
+                // ev.data.fd = childfd;
+                // if (epoll_ctl(epfd, EPOLL_CTL_ADD, childfd, &ev) == -1) {
+                //     perror("epoll_ctl");
+                //     break;
+                // }
+            // }
         }
 
         close(sockfd);
