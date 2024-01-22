@@ -17,7 +17,7 @@
 class ThreadPool {
 public:
     using CallbackFunction = std::function<void(int)>;
-    void registerCallback(int fd, CallbackFunction callback) {
+    void registerCallback(const int fd, const CallbackFunction &callback) {
         callbacks_[fd] = callback;
     }
 
@@ -78,9 +78,9 @@ public:
     }
 
     // Add a new socket to the epoll instance
-    void addSocket(int fd) {
+    void addSocket(const int fd) const {
         // Choose an epoll instance round-robin fashion
-        int epfd = epfds_[fd % epfds_.size()];
+        const int epfd = epfds_[fd % epfds_.size()];
 
         epoll_event ev{};
         ev.events = EPOLLIN;
@@ -97,10 +97,7 @@ private:
     std::condition_variable cv_;
     bool stop_ = false;
 
-    int epfd_;
-    std::thread eventThread_;
     std::map<int, CallbackFunction> callbacks_;
-
     std::vector<int> epfds_;
     std::vector<std::thread> eventThreads_;
 };

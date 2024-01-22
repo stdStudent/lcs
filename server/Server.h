@@ -146,7 +146,7 @@ public:
             args.server = this;
             args.childfd = childfd;
 
-            pool.registerCallback(childfd, [this](int fd) {
+            pool.registerCallback(childfd, [this](const int fd) {
                 static constexpr int BUFSIZE = 1024;
                 char buf[BUFSIZE];
                 const ssize_t received = recv(fd, buf, BUFSIZE - 1, 0);
@@ -164,8 +164,6 @@ public:
             pool.enqueue([&] {
                 pool.addSocket(childfd);
             });
-
-            pool.addSocket(childfd);
         }
 
         close(sockfd);
