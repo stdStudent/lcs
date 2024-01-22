@@ -124,48 +124,48 @@ public:
         }
 
         while (true) {
-                sockaddr_in address{};
-                socklen_t clientLength = sizeof(sockaddr);
+            sockaddr_in address{};
+            socklen_t clientLength = sizeof(sockaddr);
 
-                int childfd = accept(sockfd, reinterpret_cast<struct sockaddr *>(&address), &clientLength);
-                if (childfd < 0) {
-                    perror(SERVER_LOG "ERROR on accept");
-                    break;
+            int childfd = accept(sockfd, reinterpret_cast<struct sockaddr *>(&address), &clientLength);
+            if (childfd < 0) {
+                perror(SERVER_LOG "ERROR on accept");
+                break;
+            }
+
+            // Set id for a user
+            const std::string identifier = "user" + std::to_string(childfd);
+            clientIdentifiers[childfd] = identifier;
+
+            pthread_mutex_lock(&mutx);
+            client[client_num++] = childfd;
+            pthread_mutex_unlock(&mutx);
+
+            // Provide the server and the childfd to the pthread to avoid global variables
+            ClientConnectArgs args{};
+            args.server = this;
+            args.childfd = childfd;
+
+            pool.registerCallback(childfd, [this](int fd) {
+                static constexpr int BUFSIZE = 1024;
+                char buf[BUFSIZE];
+                const ssize_t received = recv(fd, buf, BUFSIZE - 1, 0);
+                if (received == 0 || received == -1) {
+                    perror(SERVER_LOG "recv failed");
+                    return;
                 }
 
-                // Set id for a user
-                const std::string identifier = "user" + std::to_string(childfd);
-                clientIdentifiers[childfd] = identifier;
+                buf[received] = '\0';
+                CommandHandler::handleCommand(buf, fd);
 
-                pthread_mutex_lock(&mutx);
-                client[client_num++] = childfd;
-                pthread_mutex_unlock(&mutx);
+                printf("(%s) %s\n", clientIdentifiers[fd].c_str(), buf);
+            });
 
-                // Provide the server and the childfd to the pthread to avoid global variables
-                ClientConnectArgs args{};
-                args.server = this;
-                args.childfd = childfd;
-
-                pool.registerCallback(childfd, [this](int fd) {
-                        static constexpr int BUFSIZE = 1024;
-                        char buf[BUFSIZE];
-                        const ssize_t received = recv(fd, buf, BUFSIZE - 1, 0);
-                        if (received == 0 || received == -1) {
-                            perror(SERVER_LOG "recv failed");
-                            return;
-                        }
-
-                        buf[received] = '\0';
-                        CommandHandler::handleCommand(buf, fd);
-
-                        printf("(%s) %s\n", clientIdentifiers[fd].c_str(), buf);
-                });
-
-                pool.enqueue([&] {
-                    pool.addSocket(childfd);
-                });
-
+            pool.enqueue([&] {
                 pool.addSocket(childfd);
+            });
+
+            pool.addSocket(childfd);
         }
 
         close(sockfd);
