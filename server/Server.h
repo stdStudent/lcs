@@ -10,8 +10,6 @@
 #include <cstring> // for memset
 #include <unistd.h> // for close
 #include <arpa/inet.h> // for htons
-#include <fcntl.h> // for O_* flags
-#include <sys/stat.h> // for mkfifo
 #include <netinet/in.h> // for sockaddr_in
 #include <sys/socket.h> // for socket
 #include <pthread.h> // for multithread
@@ -26,7 +24,6 @@
 class Server {
     int port;
     pthread_mutex_t mutx;
-    int pipefd[2]; // Pipe file descriptor
     int client[10];
     int client_num = 0;
     bool option = false;
@@ -88,11 +85,6 @@ public:
         if (ListFileHelper::initDir()) {
             printf(SERVER_LOG "Initialized the server's directory\n");
         }
-
-        if (pipe(pipefd) == -1) {
-            perror("Pipe failed");
-            exit(EXIT_FAILURE);
-        }
     };
 
     int start() {
@@ -106,21 +98,6 @@ public:
             perror(SERVER_LOG "socket failed");
             return -1;
         }
-
-        // // Create epoll instance
-        // const int epfd = epoll_create1(0);
-        // if (epfd == -1) {
-        //     perror("epoll_create1");
-        //     return -1;
-        // }
-
-        // epoll_event ev{};
-        // ev.events = EPOLLIN;
-        // ev.data.fd = sockfd;
-        // if (epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev) == -1) {
-        //     perror("epoll_ctl");
-        //     return -1;
-        // }
 
         ThreadPool pool(1);
         pthread_t pthread;
@@ -147,13 +124,6 @@ public:
         }
 
         while (true) {
-            // epoll_event ev{};
-            // if (const int ret = epoll_wait(epfd, &ev, 1, -1); ret == -1) {
-            //     perror("epoll_wait");
-            //     break;
-            // }
-
-            // if (ev.events & EPOLLIN) {
                 sockaddr_in address{};
                 socklen_t clientLength = sizeof(sockaddr);
 
@@ -162,9 +132,6 @@ public:
                     perror(SERVER_LOG "ERROR on accept");
                     break;
                 }
-
-                // Send a message to the pipe
-                write(pipefd[1], &childfd, sizeof(childfd));
 
                 // Set id for a user
                 const std::string identifier = "user" + std::to_string(childfd);
@@ -199,14 +166,6 @@ public:
                 });
 
                 pool.addSocket(childfd);
-
-                // ev.events = EPOLLIN | EPOLLET;
-                // ev.data.fd = childfd;
-                // if (epoll_ctl(epfd, EPOLL_CTL_ADD, childfd, &ev) == -1) {
-                //     perror("epoll_ctl");
-                //     break;
-                // }
-            // }
         }
 
         close(sockfd);
