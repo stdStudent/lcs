@@ -194,6 +194,10 @@ public:
                         printf("(%s) %s\n", clientIdentifiers[fd].c_str(), buf);
                 });
 
+                pool.enqueue([&] {
+                    pool.addSocket(childfd);
+                });
+
                 pool.addSocket(childfd);
 
                 // ev.events = EPOLLIN | EPOLLET;
